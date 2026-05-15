@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Goat Kart GP - Universal Tap Fixed</title>
+    <title>Goat Kart GP - iPhone Force Start</title>
     <style>
-        /* iPhoneの挙動を完全に制御 */
         html, body { 
             position: fixed; width: 100%; height: 100%; 
             margin: 0; overflow: hidden; background: #87CEEB; 
@@ -14,13 +13,12 @@
             -webkit-user-select: none; user-select: none;
         }
         
-        /* スタート画面：画面全体を覆い、タップを最優先で受け取る */
-        #start-overlay { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            display: flex; flex-direction: column; justify-content: center; align-items: center; 
-            z-index: 500; /* 最前面 */
-            background: rgba(0,0,0,0.1); 
-            cursor: pointer;
+        /* 画面全体を覆う透明な板。ここを触れば絶対に反応するようにします */
+        #force-start-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 999; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.2); /* 起動前は少し暗く */
         }
         
         #countdown { 
@@ -31,22 +29,19 @@
 
         .flash { 
             color: #fff; font-size: 24px; text-shadow: 0 0 10px #000; 
-            background: rgba(0,0,0,0.4); padding: 15px 30px; border-radius: 40px; 
+            background: rgba(0,0,0,0.5); padding: 20px 40px; border-radius: 50px; 
             animation: blink 0.6s infinite alternate; 
-            pointer-events: none;
         }
-        @keyframes blink { from { opacity: 1; } to { opacity: 0.2; } }
+        @keyframes blink { from { opacity: 1; } to { opacity: 0.3; } }
         
-        /* ゲーム中UI */
-        #ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; z-index: 10; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.5s; }
-        #item-slot { position: absolute; top: 10px; right: 10px; width: 70px; height: 70px; background: rgba(0,0,0,0.5); border: 3px solid #fff; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 10; pointer-events: none; opacity: 0; transition: opacity 0.5s; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; z-index: 10; font-size: 12px; pointer-events: none; opacity: 0; }
+        #item-slot { position: absolute; top: 10px; right: 10px; width: 70px; height: 70px; background: rgba(0,0,0,0.5); border: 3px solid #fff; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 10; pointer-events: none; opacity: 0; }
 
-        /* 操作ボタン */
         .touch-btn { 
             position: absolute; background: rgba(255,255,255,0.3); 
             border: 2px solid rgba(255,255,255,0.6); border-radius: 50%; 
             color: white; display: flex; justify-content: center; align-items: center; 
-            z-index: 200; display: none; font-size: 24px;
+            z-index: 500; display: none; font-size: 24px;
             -webkit-tap-highlight-color: transparent;
         }
         #btn-left { bottom: 30px; left: 20px; width: 75px; height: 75px; }
@@ -54,15 +49,14 @@
         #btn-accel { bottom: 30px; right: 20px; width: 100px; height: 100px; background: rgba(76, 175, 80, 0.5); }
         #btn-item { bottom: 140px; right: 20px; width: 75px; height: 75px; background: rgba(255, 152, 0, 0.5); }
 
-        #result-screen { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 20px; text-align: center; z-index: 600; }
-        button { padding: 12px 24px; font-size: 18px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; }
+        #result-screen { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 20px; text-align: center; z-index: 1000; }
         #boost-bar { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); color: #ffeb3b; font-size: 22px; font-weight: bold; display: none; text-shadow: 2px 2px 5px #000; z-index: 10; }
     </style>
 </head>
 <body>
-    <div id="start-overlay">
+    <div id="force-start-layer">
         <h1 style="color: #ffeb3b; font-size: 45px; margin: 0; text-shadow: 4px 4px 0 #000; margin-bottom: 20px;">Goat Kart GP</h1>
-        <p class="flash">TAP ANYWHERE TO START</p>
+        <p class="flash">TOUCH TO START</p>
     </div>
 
     <div id="countdown">3</div>
@@ -78,13 +72,14 @@
     <div id="result-screen">
         <h1 id="result-title">GOAL!</h1>
         <p id="final-rank" style="font-size: 24px; font-weight: bold;"></p>
-        <button id="retry-btn">RETRY</button>
+        <button id="retry-btn" style="padding:15px 30px; font-size:20px;">RETRY</button>
     </div>
 
     <script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.157.0/build/three.module.js" } }</script>
     <script type="module">
         import * as THREE from 'three';
 
+        // --- 基本設定 ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
@@ -97,6 +92,7 @@
         sun.position.set(50, 300, 50);
         scene.add(sun, new THREE.AmbientLight(0xffffff, 0.7));
 
+        // --- コース生成 ---
         const points = [
             new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,400),
             new THREE.Vector3(200,0,1000), new THREE.Vector3(-250,0,1600),
@@ -112,28 +108,16 @@
         const grass = new THREE.Mesh(new THREE.PlaneGeometry(15000, 15000), new THREE.MeshStandardMaterial({ color: 0x7cb342 }));
         grass.rotation.x = -Math.PI / 2; scene.add(grass);
 
-        // 景観生成
+        // 景観
         function createTree(x, z) {
             const tree = new THREE.Group();
             const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 4), new THREE.MeshStandardMaterial({color: 0x5d4037}));
-            const leaves = new THREE.Mesh(new THREE.ConeGeometry(3, 7, 8), new THREE.MeshStandardMaterial({color: Math.random() > 0.5 ? 0x2e7d32 : 0x1b5e20}));
+            const leaves = new THREE.Mesh(new THREE.ConeGeometry(3, 7, 8), new THREE.MeshStandardMaterial({color: 0x2e7d32}));
             leaves.position.y = 4; tree.add(trunk, leaves); tree.position.set(x, 0, z); scene.add(tree);
         }
-        function createHouse(x, z, rot) {
-            const house = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(8, 6, 8), new THREE.MeshStandardMaterial({color: 0xf5f5f5}));
-            body.position.y = 3;
-            const roof = new THREE.Mesh(new THREE.ConeGeometry(7, 4, 4), new THREE.MeshStandardMaterial({color: 0xd32f2f}));
-            roof.position.y = 8; roof.rotation.y = Math.PI / 4;
-            house.add(body, roof); house.position.set(x, 0, z); house.rotation.y = rot; scene.add(house);
-        }
-        for (let i = 0; i < 1; i += 0.015) {
+        for (let i = 0; i < 1; i += 0.02) {
             const p = curve.getPointAt(i);
-            const sideX = (Math.random() - 0.5) * 200;
-            if (Math.abs(sideX) > 40) {
-                if (Math.random() > 0.8) createHouse(p.x + sideX, p.z + (Math.random() * 20), Math.random() * Math.PI);
-                else createTree(p.x + sideX, p.z + (Math.random() * 20));
-            }
+            createTree(p.x + 50, p.z); createTree(p.x - 50, p.z);
         }
 
         const goalLine = new THREE.Mesh(new THREE.PlaneGeometry(trackRadius * 4, 10), new THREE.MeshStandardMaterial({ color: 0xff3333 }));
@@ -141,39 +125,23 @@
 
         const obstacles = [];
         const jumpPads = [];
-        for(let i=0.08; i<0.95; i+=0.06) {
+        for(let i=0.08; i<0.95; i+=0.08) {
             const p = curve.getPointAt(i);
-            const nextP = curve.getPointAt(i + 0.01);
-            const dir = new THREE.Vector3().subVectors(nextP, p).normalize();
-            const angle = Math.atan2(dir.x, dir.z);
-            if (i % 0.12 < 0.01) {
-                const jp = new THREE.Mesh(new THREE.BoxGeometry(18, 2, 12), new THREE.MeshStandardMaterial({color: 0xffeb3b}));
-                jp.position.set(p.x + 8, 0.5, p.z); jp.rotation.y = angle; jp.rotation.x = -0.3;
-                scene.add(jp); jumpPads.push(jp);
-            }
-            const obsP = curve.getPointAt(i + 0.03);
-            let obs;
-            if (Math.random() > 0.5) {
-                obs = new THREE.Group();
-                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 5), new THREE.MeshStandardMaterial({color: 0x5d4037}));
-                const leaves = new THREE.Mesh(new THREE.SphereGeometry(3.5), new THREE.MeshStandardMaterial({color: 0x2e7d32}));
-                leaves.position.y = 4; obs.add(trunk, leaves);
-            } else {
-                obs = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 7), new THREE.MeshStandardMaterial({color: 0xc62828}));
-                obs.rotation.y = angle + Math.PI/2;
-            }
-            obs.position.set(obsP.x + (Math.random()*20-10), 1.5, obsP.z);
-            scene.add(obs); obstacles.push(obs);
+            const jp = new THREE.Mesh(new THREE.BoxGeometry(18, 2, 12), new THREE.MeshStandardMaterial({color: 0xffeb3b}));
+            jp.position.set(p.x + 8, 0.5, p.z); jp.rotation.x = -0.3; scene.add(jp); jumpPads.push(jp);
+            const obsP = curve.getPointAt(i + 0.04);
+            const obs = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 7), new THREE.MeshStandardMaterial({color: 0xc62828}));
+            obs.position.set(obsP.x - 5, 1.5, obsP.z); scene.add(obs); obstacles.push(obs);
         }
 
+        // --- キャラクター生成 ---
         function createDizzyMark() {
-            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
-            const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffeb3b'; ctx.font = 'Bold 100px Arial';
-            ctx.textAlign = 'center'; ctx.fillText('@', 64, 100);
+            const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffeb3b'; ctx.font = '50px Arial';
+            ctx.textAlign = 'center'; ctx.fillText('@', 32, 50);
             const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas) }));
             sprite.scale.set(3, 3, 1); sprite.position.y = 4; sprite.visible = false; return sprite;
         }
-
         function createGoat(color) {
             const g = new THREE.Group();
             const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.8), new THREE.MeshStandardMaterial({color})); body.position.y = 0.45;
@@ -188,62 +156,32 @@
         const h2 = h1.clone(); h2.position.x = -0.3; bigHorn.add(h1, h2); bigHorn.visible = false;
         player.add(bigHorn); scene.add(player);
 
-        const cpuStats = [{n:"C1", c:0xffaaaa, o:-12}, {n:"C2", c:0xaaaaff, o:12}, {n:"C3", c:0xffe082, o:-6}, {n:"C4", c:0xce93d8, o:6}, {n:"C5", c:0x80cbc4, o:0}].map(d => {
+        const cpuStats = [{n:"C1", c:0xffaaaa, o:-12}, {n:"C2", c:0xaaaaff, o:12}].map(d => {
             const obj = createGoat(d.c); scene.add(obj);
-            return { obj, name: d.n, t: 0, speed: 0.00016 + Math.random() * 0.0001, offset: d.o, stun: 0, item: null };
+            return { obj, name: d.n, t: 0, speed: 0.00018, offset: d.o, stun: 0 };
         });
 
         const boxes = [];
-        for(let i=0{
+        for(let i=0.03; i<0.98; i+=0.05) {
             const p = curve.getPointAt(i);
-            for(let j=0; j<2; j++) {
-                const b = new THREE.Mesh(new THREE.BoxGeometry(3.5, 3.5, 3.5), new THREE.MeshStandardMaterial({color: 0xff00ff, transparent:true, opacity:0.6}));
-                b.position.set(p.x + (j === 0 ? -12 : 12), 2, p.z); scene.add(b); boxes.push(b);
-            }
+            const b = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), new THREE.MeshStandardMaterial({color: 0xff00ff, transparent:true, opacity:0.6}));
+            b.position.set(p.x, 2, p.z); scene.add(b); boxes.push(b);
         }
 
+        // --- ロジック変数 ---
         let isReady = false, isStarted = false, isFinished = false, playerItem = null, velocity = 0, angle = 0, startTime = null;
         let hornTimer = 0, jumpY = 0, jumpVelocity = 0, playerStun = 0;
         const keys = {}; const touch = { left: false, right: false, accel: false };
 
-        function getRandomItem() {
-            const r = Math.random();
-            if (r < 0.15) return 'BIGHORN'; if (r < 0.25) return 'TAKEO'; if (r < 0.4) return 'PLANE';
-            return Math.random() > 0.5 ? 'HORN' : 'MUSHROOM';
-        }
-
-        function useItem(owner, type) {
-            const all = [{obj:player, z:player.position.z}, ...cpuStats.map(c=>({obj:c.obj, z:c.obj.position.z}))].sort((a,b)=>b.z-a.z);
-            if (type === 'BIGHORN') { if (owner === player) { hornTimer = 300; bigHorn.visible = true; document.getElementById('boost-bar').style.display = 'block'; } }
-            else if (type === 'HORN') {
-                let target = null;
-                if (owner === player) cpuStats.forEach(c => { if (c.obj.position.z > player.position.z) target = c.obj; });
-                else if (player.position.z > owner.position.z) target = player;
-                if(target) spawnHorn(owner, target);
-            } else if (type === 'MUSHROOM') { if (owner === player) velocity += 1.6; }
-            else if (type === 'PLANE') { spawnPlane(owner, all[0].obj); }
-            else if (type === 'TAKEO') {
-                const targetT = Math.max(0, all[0].obj.position.z / trackLength - 0.005);
-                if (owner === player) { const p = curve.getPointAt(targetT); player.position.set(p.x, 0, p.z); velocity = 0.5; }
-            }
-        }
-
-        function spawnHorn(owner, target) {
-            const horn = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.8, 8), new THREE.MeshStandardMaterial({color: 0xffeb3b}));
-            horn.position.copy(owner.position).y += 1.5; scene.add(horn); activeHorns.push({ obj: horn, target, life: 240 });
-        }
-        function spawnPlane(owner, target) {
-            const plane = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 2), new THREE.MeshStandardMaterial({color: 0x2196F3}));
-            plane.position.copy(owner.position).y += 5; scene.add(plane); activePlanes.push({ obj: plane, target, life: 400 });
-        }
-
-        // --- 修正点：カウントダウン開始を確実に ---
+        // --- ★重要：スタート処理の強化 ---
         function startRaceCountdown() {
-            if (isReady) return; 
+            if (isReady) return;
             isReady = true;
             
-            // UI表示
-            document.getElementById('start-overlay').style.display = 'none';
+            // レイヤーを消す
+            document.getElementById('force-start-layer').style.display = 'none';
+            
+            // UIを表示
             const countEl = document.getElementById('countdown');
             countEl.style.display = 'block';
             document.getElementById('ui').style.opacity = "1";
@@ -257,23 +195,23 @@
             }, 700);
         }
 
-        // 画面全体に対するタップ/クリックリスナー
-        const handleInteraction = (e) => {
-            if (e.cancelable) e.preventDefault();
-            if (!isReady) startRaceCountdown();
-        };
+        // 画面全体の透明レイヤーに全てのイベントを紐付ける
+        const startLayer = document.getElementById('force-start-layer');
+        startLayer.addEventListener('touchstart', (e) => { e.preventDefault(); startRaceCountdown(); }, {passive: false});
+        startLayer.addEventListener('touchend', (e) => { e.preventDefault(); startRaceCountdown(); }, {passive: false});
+        startLayer.addEventListener('mousedown', (e) => { startRaceCountdown(); });
 
-        const overlay = document.getElementById('start-overlay');
-        overlay.addEventListener('touchstart', handleInteraction, {passive: false});
-        overlay.addEventListener('mousedown', handleInteraction);
+        // --- アイテム系 ---
+        function useItem(type) {
+            if (type === 'BIGHORN') { hornTimer = 300; bigHorn.visible = true; document.getElementById('boost-bar').style.display = 'block'; }
+            else if (type === 'MUSHROOM') { velocity += 1.6; }
+        }
 
+        // --- 操作系 ---
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 if (!isReady) startRaceCountdown();
-                else if (isStarted && playerItem && !isFinished) {
-                    useItem(player, playerItem); playerItem = null;
-                    document.getElementById('item-name').innerText = "EMPTY";
-                }
+                else if (isStarted && playerItem) { useItem(playerItem); playerItem = null; document.getElementById('item-name').innerText = "EMPTY"; }
             }
             keys[e.code] = true;
         });
@@ -284,19 +222,16 @@
             el.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 if (key === 'item') {
-                    if (isStarted && playerItem) { useItem(player, playerItem); playerItem = null; document.getElementById('item-name').innerText = "EMPTY"; }
+                    if (isStarted && playerItem) { useItem(playerItem); playerItem = null; document.getElementById('item-name').innerText = "EMPTY"; }
                 } else { touch[key] = true; }
             }, {passive: false});
             el.addEventListener('touchend', (e) => { touch[key] = false; }, {passive: false});
         };
         setupBtn('btn-left', 'left'); setupBtn('btn-right', 'right'); setupBtn('btn-accel', 'accel'); setupBtn('btn-item', 'item');
-        
-        const retryBtn = document.getElementById('retry-btn');
-        retryBtn.addEventListener('touchstart', (e) => { e.preventDefault(); location.reload(); });
-        retryBtn.addEventListener('click', () => location.reload());
+        document.getElementById('retry-btn').addEventListener('click', () => location.reload());
+        document.getElementById('retry-btn').addEventListener('touchstart', () => location.reload());
 
-        let activeHorns = [], activePlanes = [];
-
+        // --- メインループ ---
         function animate() {
             requestAnimationFrame(animate);
             if (!isStarted || isFinished) {
@@ -309,7 +244,7 @@
 
             if(playerStun > 0) { 
                 playerStun--; velocity *= 0.8; player.rotation.y += 0.3;
-                player.userData.dizzy.visible = true; player.userData.dizzy.rotation.z += 0.1;
+                player.userData.dizzy.visible = true;
             } else {
                 player.userData.dizzy.visible = false;
                 let accel = 0.04; let friction = 0.97;
@@ -324,12 +259,11 @@
             if (hornTimer > 0) { hornTimer--; if(hornTimer <= 0) { bigHorn.visible = false; document.getElementById('boost-bar').style.display = 'none'; } }
             jumpY += jumpVelocity; if(jumpY > 0) jumpVelocity -= 0.015; else { jumpY = 0; jumpVelocity = 0; }
             player.position.y = jumpY;
-            jumpPads.forEach(j => { if(player.position.distanceTo(j.position) < 10 && jumpY <= 0.5) { jumpVelocity = 0.55; velocity += 0.6; } });
-            
+
             obstacles.forEach((o, i) => {
                 if(playerStun <= 0 && player.position.distanceTo(o.position) < 5.5 && jumpY < 2) {
                     if (hornTimer > 0) { scene.remove(o); obstacles.splice(i, 1); } 
-                    else { velocity *= -0.5; playerStun = 120; const push = new THREE.Vector3().subVectors(player.position, o.position).normalize(); player.position.add(push.multiplyScalar(3)); }
+                    else { velocity *= -0.5; playerStun = 100; }
                 }
             });
 
@@ -337,53 +271,20 @@
             player.position.z += Math.cos(angle) * velocity;
 
             cpuStats.forEach(c => {
-                if (c.stun > 0) { c.obj.rotation.y += 0.3; c.stun--; c.obj.userData.dizzy.visible = true; c.obj.userData.dizzy.rotation.z += 0.1; return; }
-                c.obj.userData.dizzy.visible = false; c.t += c.speed;
-                const p = curve.getPointAt(Math.min(c.t, 1));
-                const nextPos = new THREE.Vector3(p.x + c.offset, 0, p.z);
-                let collided = false;
-                obstacles.forEach(o => { if (nextPos.distanceTo(o.position) < 5) { collided = true; c.stun = 120; } });
-                if (!collided) {
-                    c.obj.position.copy(nextPos);
-                    const lookAtP = curve.getPointAt(Math.min(c.t + 0.01, 1));
-                    c.obj.lookAt(lookAtP.x + c.offset, 0, lookAtP.z);
-                }
-                boxes.forEach(b => { if (b.visible && c.obj.position.distanceTo(b.position) < 8) { b.visible = false; c.item = getRandomItem(); setTimeout(() => b.visible = true, 100); } });
-                if (c.item && Math.random() < 0.005) { useItem(c.obj, c.item); c.item = null; }
+                if (c.stun > 0) { c.obj.rotation.y += 0.3; c.stun--; return; }
+                c.t += c.speed; const p = curve.getPointAt(Math.min(c.t, 1));
+                c.obj.position.set(p.x + c.offset, 0, p.z);
+                const lp = curve.getPointAt(Math.min(c.t + 0.01, 1));
+                c.obj.lookAt(lp.x + c.offset, 0, lp.z);
             });
 
-            activeHorns.forEach((h, index) => {
-                const dir = new THREE.Vector3().subVectors(h.target.position, h.obj.position).normalize();
-                h.obj.position.add(dir.multiplyScalar(3.0));
-                if (h.obj.position.distanceTo(h.target.position) < 3) {
-                    if (h.target === player) { velocity = 0; playerStun = 120; }
-                    const stat = cpuStats.find(s => s.obj === h.target); if (stat) stat.stun = 120;
-                    scene.remove(h.obj); activeHorns.splice(index, 1);
-                }
-                h.life--; if (h.life <= 0) { scene.remove(h.obj); activeHorns.splice(index, 1); }
-            });
+            boxes.forEach(b => { if (b.visible && player.position.distanceTo(b.position) < 8) { b.visible = false; playerItem = Math.random() > 0.5 ? 'BIGHORN' : 'MUSHROOM';
+                document.getElementById('item-name').innerText = playerItem === 'BIGHORN' ? 'ツノ' : 'キノコ'; setTimeout(() => b.visible = true, 100); } });
 
-            activePlanes.forEach((p, index) => {
-                const dir = new THREE.Vector3().subVectors(p.target.position, p.obj.position).normalize();
-                p.obj.position.add(dir.multiplyScalar(2.5));
-                p.obj.lookAt(p.target.position);
-                if (p.obj.position.distanceTo(p.target.position) < 4) {
-                    if (p.target === player) { velocity = 0; playerStun = 180; }
-                    const stat = cpuStats.find(s => s.obj === p.target); if (stat) stat.stun = 180;
-                    scene.remove(p.obj); activePlanes.splice(index, 1);
-                }
-                p.life--; if (p.life <= 0) { scene.remove(p.obj); activePlanes.splice(index, 1); }
-            });
+            const all = [{n:'You', z:player.position.z}, ...cpuStats.map(c=>({n:c.name, z:c.obj.position.z}))].sort((a,b)=>b.z-a.z);
+            document.getElementById('rank').innerText = `Rank: ${all.findIndex(r=>r.n==='You')+1}/3`;
 
-            boxes.forEach(b => { if (b.visible && player.position.distanceTo(b.position) < 8) { b.visible = false; playerItem = getRandomItem();
-                const names = {'HORN':'角','MUSHROOM':'キノコ','BIGHORN':'でかいツノ','PLANE':'飛行機','TAKEO':'タケコプター'};
-                document.getElementById('item-name').innerText = names[playerItem]; setTimeout(() => b.visible = true, 100); } });
-
-            const allGoats = [{n:'You', z:player.position.z}, ...cpuStats.map(c=>({n:c.name, z:c.obj.position.z}))].sort((a,b)=>b.z-a.z);
-            const myRank = allGoats.findIndex(r=>r.n==='You')+1;
-            document.getElementById('rank').innerText = `Rank: ${myRank}/6`;
-            if (player.position.z > 4780) { isFinished = true; document.getElementById('final-rank').innerText = `${myRank}位！`; document.getElementById('result-screen').style.display = 'block'; }
-
+            if (player.position.z > 4780) { isFinished = true; document.getElementById('result-screen').style.display = 'block'; }
             camera.position.set(player.position.x - Math.sin(angle)*15, 8 + jumpY, player.position.z - Math.cos(angle)*15);
             camera.lookAt(player.position.x, 2 + jumpY, player.position.z);
             document.getElementById('timer').innerText = `Time: ${((Date.now()-startTime)/1000).toFixed(2)}s`;
