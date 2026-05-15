@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Goat Kart GP - Item Balance Update</title>
+    <title>Goat Kart GP - Gimmicks & Fast Items</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Arial Black', sans-serif; }
         #start-screen {
@@ -62,6 +62,7 @@
         sun.position.set(50, 300, 50);
         scene.add(sun, new THREE.AmbientLight(0xffffff, 0.7));
 
+        // 4800ユニット延長コース
         const points = [
             new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,400),
             new THREE.Vector3(200,0,1000), new THREE.Vector3(-250,0,1600),
@@ -82,17 +83,26 @@
         goalLine.rotation.x = -Math.PI / 2; goalLine.position.set(0, 0.05, 4790);
         scene.add(goalLine);
 
+        // --- ① ギミック（ジャンプ台・障害物）の確実な配置 ---
         const jumpPads = [];
         const obstacles = [];
-        for(let i=0.1; i<0.95; i+=0.15) {
-            const jp = new THREE.Mesh(new THREE.BoxGeometry(15, 1, 10), new THREE.MeshStandardMaterial({color: 0xffeb3b}));
-            const pos = curve.getPointAt(i);
-            jp.position.set(pos.x + 5, 0.5, pos.z); jp.rotation.x = -0.3;
+        for(let i=0.08; i<0.95; i+=0.12) {
+            const p = curve.getPointAt(i);
+            const nextP = curve.getPointAt(i + 0.01);
+            const dir = new THREE.Vector3().subVectors(nextP, p).normalize();
+            const angle = Math.atan2(dir.x, dir.z);
+
+            // ジャンプ台
+            const jp = new THREE.Mesh(new THREE.BoxGeometry(18, 2, 12), new THREE.MeshStandardMaterial({color: 0xffeb3b}));
+            jp.position.set(p.x + 8, 0, p.z);
+            jp.rotation.y = angle;
+            jp.rotation.x = -0.3;
             scene.add(jp); jumpPads.push(jp);
 
-            const obs = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 4, 8), new THREE.MeshStandardMaterial({color: 0xff3333}));
-            const posObs = curve.getPointAt(i + 0.05);
-            obs.position.set(posObs.x - 5, 2, posObs.z);
+            // 障害物
+            const obsP = curve.getPointAt(i + 0.06);
+            const obs = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 5, 12), new THREE.MeshStandardMaterial({color: 0xff3333}));
+            obs.position.set(obsP.x - 8, 2.5, obsP.z);
             scene.add(obs); obstacles.push(obs);
         }
 
@@ -109,8 +119,7 @@
         const player = createGoat(0xffffff);
         const shepherd = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.4), new THREE.MeshStandardMaterial({color: 0x8b4513}));
         shepherd.position.y = 1.3; shepherd.visible = false;
-        player.add(shepherd);
-        scene.add(player);
+        player.add(shepherd); scene.add(player);
 
         const cpuData = [{ name: "CPU1", color: 0xffaaaa, offset: -14 }, { name: "CPU2", color: 0xaaaaff, offset: 14 }, { name: "CPU3", color: 0xffe082, offset: -7 }, { name: "CPU4", color: 0xce93d8, offset: 7 }, { name: "CPU5", color: 0x80cbc4, offset: 0 }];
         const cpuStats = cpuData.map(data => {
@@ -124,7 +133,7 @@
             const p = curve.getPointAt(i);
             const numInRow = Math.random() > 0.5 ? 3 : 2;
             for(let j=0; j<numInRow; j++) {
-                const b = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), new THREE.MeshStandardMaterial({color: 0xff00ff, transparent:true, opacity:0.6}));
+                const b = new THREE.Mesh(new THREE.BoxGeometry(3.5, 3.5, 3.5), new THREE.MeshStandardMaterial({color: 0xff00ff, transparent:true, opacity:0.6}));
                 const offsetX = (j - (numInRow-1)/2) * 12;
                 b.position.set(p.x + offsetX, 2, p.z);
                 scene.add(b); boxes.push(b);
@@ -138,8 +147,8 @@
 
         function getRandomItem() {
             const r = Math.random();
-            if (r < 0.01) return 'TAKEO';  // 1%
-            if (r < 0.11) return 'PLANE';  // 10% (0.01 ~ 0.11 の範囲)
+            if (r < 0.01) return 'TAKEO';
+            if (r < 0.11) return 'PLANE';
             const remain = ['HORN', 'MUSHROOM', 'SHEPHERD'];
             return remain[Math.floor(Math.random() * remain.length)];
         }
@@ -161,9 +170,8 @@
             } else if (type === 'SHEPHERD') {
                 if (owner === player) { boostTimer = 120; shepherd.visible = true; document.getElementById('boost-bar').style.display = 'block'; }
                 else { const stat = cpuStats.find(s => s.obj === owner); if(stat) { stat.speed *= 1.25; setTimeout(() => { if(stat) stat.speed /= 1.25; }, 2000); } }
-            } else if (type === 'PLANE') {
-                spawnPlane(owner, leader.obj);
-            } else if (type === 'TAKEO') {
+            } else if (type === 'PLANE') { spawnPlane(owner, leader.obj); }
+            else if (type === 'TAKEO') {
                 if (owner === player) {
                     const targetT = Math.max(0, leader.obj.position.z / trackLength - 0.005);
                     const p = curve.getPointAt(targetT);
@@ -215,9 +223,11 @@
             jumpY += jumpVelocity; if(jumpY > 0) { jumpVelocity -= 0.015; } else { jumpY = 0; jumpVelocity = 0; }
             player.position.y = jumpY;
 
-            jumpPads.forEach(j => { if(player.position.distanceTo(j.position) < 8 && jumpY <= 0) { jumpVelocity = 0.5; velocity += 0.5; } });
-            obstacles.forEach(o => { if(player.position.distanceTo(o.position) < 4 && jumpY < 1) { velocity = 0; playerStun = 30; } });
+            // ギミック接触判定
+            jumpPads.forEach(j => { if(player.position.distanceTo(j.position) < 10 && jumpY <= 0.5) { jumpVelocity = 0.55; velocity += 0.6; } });
+            obstacles.forEach(o => { if(player.position.distanceTo(o.position) < 5 && jumpY < 1.5) { velocity = 0; playerStun = 45; } });
 
+            // オフロード判定
             let minPlayerDist = Infinity;
             const currentT = Math.min(Math.max(player.position.z / trackLength, 0), 1);
             for (let i = -0.05; i <= 0.05; i += 0.005) {
@@ -233,16 +243,24 @@
             player.position.x += Math.sin(angle) * velocity;
             player.position.z += Math.cos(angle) * velocity;
 
+            // CPU移動
             cpuStats.forEach(c => {
                 if (c.stun > 0) { c.obj.rotation.y += 0.5; c.stun--; return; }
                 c.t += c.speed;
                 const p = curve.getPointAt(Math.min(c.t, 1));
                 c.obj.position.set(p.x + c.offset, 0, p.z);
-                c.obj.lookAt(curve.getPointAt(Math.min(c.t + 0.01, 1)).x + c.offset, 0, curve.getPointAt(Math.min(c.t + 0.01, 1)).z);
-                boxes.forEach(b => { if (b.visible && c.obj.position.distanceTo(b.position) < 8) { b.visible = false; c.item = getRandomItem(); setTimeout(() => b.visible = true, 4000); } });
+                const lookAtP = curve.getPointAt(Math.min(c.t + 0.01, 1));
+                c.obj.lookAt(lookAtP.x + c.offset, 0, lookAtP.z);
+                boxes.forEach(b => { 
+                    if (b.visible && c.obj.position.distanceTo(b.position) < 8) { 
+                        b.visible = false; c.item = getRandomItem(); 
+                        setTimeout(() => b.visible = true, 100); // ② CPU用も高速復活
+                    } 
+                });
                 if (c.item && Math.random() < 0.005) { useItem(c.obj, c.item); c.item = null; }
             });
 
+            // ホーミングツノ
             activeHorns.forEach((h, index) => {
                 const dir = new THREE.Vector3().subVectors(h.target.position, h.obj.position).normalize();
                 h.obj.position.add(dir.multiplyScalar(3.0));
@@ -254,9 +272,10 @@
                 h.life--; if (h.life <= 0) { scene.remove(h.obj); activeHorns.splice(index, 1); }
             });
 
+            // 飛行機
             activePlanes.forEach((p, index) => {
                 const dir = new THREE.Vector3().subVectors(p.target.position, p.obj.position).normalize();
-                p.obj.position.add(dir.multiplyScalar(2.0));
+                p.obj.position.add(dir.multiplyScalar(2.5));
                 p.obj.lookAt(p.target.position);
                 if (p.obj.position.distanceTo(p.target.position) < 4) {
                     if (p.target === player) { velocity = 0; playerStun = 120; }
@@ -266,9 +285,15 @@
                 p.life--; if (p.life <= 0) { scene.remove(p.obj); activePlanes.splice(index, 1); }
             });
 
-            boxes.forEach(b => { if (b.visible && player.position.distanceTo(b.position) < 8) { b.visible = false; playerItem = getRandomItem();
-                const names = {'HORN':'角','MUSHROOM':'キノコ','SHEPHERD':'羊飼い','PLANE':'飛行機','TAKEO':'タケコプター'};
-                document.getElementById('item-name').innerText = names[playerItem]; setTimeout(() => b.visible = true, 4000); } });
+            // プレイヤーアイテム取得
+            boxes.forEach(b => { 
+                if (b.visible && player.position.distanceTo(b.position) < 8) { 
+                    b.visible = false; playerItem = getRandomItem();
+                    const names = {'HORN':'角','MUSHROOM':'キノコ','SHEPHERD':'羊飼い','PLANE':'飛行機','TAKEO':'タケコプター'};
+                    document.getElementById('item-name').innerText = names[playerItem]; 
+                    setTimeout(() => b.visible = true, 100); // ② 即時復活
+                } 
+            });
 
             const allGoats = [{n:'You', z:player.position.z}, ...cpuStats.map(c=>({n:c.name, z:c.obj.position.z}))].sort((a,b)=>b.z-a.z);
             const myRank = allGoats.findIndex(r=>r.n==='You')+1;
