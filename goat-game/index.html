@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Goat Kart GP - Shepherd Adjustment</title>
+    <title>Goat Kart GP - Gimmicks & Fast Items</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Arial Black', sans-serif; }
         #start-screen {
@@ -36,7 +36,7 @@
         <div id="item-name" style="font-size: 18px; color: #ffeb3b; text-align: center;">EMPTY</div>
     </div>
 
-    <div id="boost-bar">SHEPHERD QUICK BOOST!!</div>
+    <div id="boost-bar">SHEPHERD BOOST!!</div>
 
     <div id="result-screen">
         <h1 id="result-title">GOAL!</h1>
@@ -53,7 +53,7 @@
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 8000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
@@ -62,22 +62,49 @@
         sun.position.set(50, 300, 50);
         scene.add(sun, new THREE.AmbientLight(0xffffff, 0.7));
 
-        const curve = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,300),
-            new THREE.Vector3(150,0,700), new THREE.Vector3(-150,0,1200),
-            new THREE.Vector3(200,0,1800), new THREE.Vector3(0,0,2400)
-        ]);
+        // 4800ユニット延長コース
+        const points = [
+            new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,400),
+            new THREE.Vector3(200,0,1000), new THREE.Vector3(-250,0,1600),
+            new THREE.Vector3(300,0,2400), new THREE.Vector3(-100,0,3200),
+            new THREE.Vector3(400,0,4000), new THREE.Vector3(0,0,4800)
+        ];
+        const curve = new THREE.CatmullRomCurve3(points);
+        const trackLength = 4800;
         const trackRadius = 22; 
-        const trackGeo = new THREE.TubeGeometry(curve, 400, trackRadius, 12, false);
+        const trackGeo = new THREE.TubeGeometry(curve, 800, trackRadius, 12, false);
         const track = new THREE.Mesh(trackGeo, new THREE.MeshStandardMaterial({ color: 0x333333 }));
         track.scale.y = 0.01; scene.add(track);
 
-        const grass = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), new THREE.MeshStandardMaterial({ color: 0x7cb342 }));
+        const grass = new THREE.Mesh(new THREE.PlaneGeometry(10000, 10000), new THREE.MeshStandardMaterial({ color: 0x7cb342 }));
         grass.rotation.x = -Math.PI / 2; scene.add(grass);
 
-        const goalLine = new THREE.Mesh(new THREE.PlaneGeometry(trackRadius * 4, 4), new THREE.MeshStandardMaterial({ color: 0xff3333 }));
-        goalLine.rotation.x = -Math.PI / 2; goalLine.position.set(0, 0.05, 2395);
+        const goalLine = new THREE.Mesh(new THREE.PlaneGeometry(trackRadius * 4, 10), new THREE.MeshStandardMaterial({ color: 0xff3333 }));
+        goalLine.rotation.x = -Math.PI / 2; goalLine.position.set(0, 0.05, 4790);
         scene.add(goalLine);
+
+        // --- ① ギミック（ジャンプ台・障害物）の確実な配置 ---
+        const jumpPads = [];
+        const obstacles = [];
+        for(let i=0.08; i<0.95; i+=0.12) {
+            const p = curve.getPointAt(i);
+            const nextP = curve.getPointAt(i + 0.01);
+            const dir = new THREE.Vector3().subVectors(nextP, p).normalize();
+            const angle = Math.atan2(dir.x, dir.z);
+
+            // ジャンプ台
+            const jp = new THREE.Mesh(new THREE.BoxGeometry(18, 2, 12), new THREE.MeshStandardMaterial({color: 0xffeb3b}));
+            jp.position.set(p.x + 8, 0, p.z);
+            jp.rotation.y = angle;
+            jp.rotation.x = -0.3;
+            scene.add(jp); jumpPads.push(jp);
+
+            // 障害物
+            const obsP = curve.getPointAt(i + 0.06);
+            const obs = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 5, 12), new THREE.MeshStandardMaterial({color: 0xff3333}));
+            obs.position.set(obsP.x - 8, 2.5, obsP.z);
+            scene.add(obs); obstacles.push(obs);
+        }
 
         function createGoat(color) {
             const g = new THREE.Group();
@@ -89,82 +116,69 @@
             return g;
         }
 
-        function createShepherd() {
-            const s = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.4), new THREE.MeshStandardMaterial({color: 0x8b4513}));
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({color: 0xffdbac}));
-            head.position.y = 0.6;
-            s.add(body, head);
-            s.position.y = 1.3;
-            return s;
-        }
-
         const player = createGoat(0xffffff);
-        const shepherd = createShepherd();
-        shepherd.visible = false;
-        player.add(shepherd);
-        scene.add(player);
+        const shepherd = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.4), new THREE.MeshStandardMaterial({color: 0x8b4513}));
+        shepherd.position.y = 1.3; shepherd.visible = false;
+        player.add(shepherd); scene.add(player);
 
-        const cpuData = [
-            { name: "CPU1", color: 0xffaaaa, offset: -14 },
-            { name: "CPU2", color: 0xaaaaff, offset: 14 },
-            { name: "CPU3", color: 0xffe082, offset: -7 },
-            { name: "CPU4", color: 0xce93d8, offset: 7 },
-            { name: "CPU5", color: 0x80cbc4, offset: 0 }
-        ];
-
+        const cpuData = [{ name: "CPU1", color: 0xffaaaa, offset: -14 }, { name: "CPU2", color: 0xaaaaff, offset: 14 }, { name: "CPU3", color: 0xffe082, offset: -7 }, { name: "CPU4", color: 0xce93d8, offset: 7 }, { name: "CPU5", color: 0x80cbc4, offset: 0 }];
         const cpuStats = cpuData.map(data => {
             const obj = createGoat(data.color);
             scene.add(obj);
-            return { obj, name: data.name, t: 0, speed: 0.00032 + Math.random() * 0.00015, offset: data.offset, stun: 0, item: null };
+            return { obj, name: data.name, t: 0, speed: 0.00015 + Math.random() * 0.0001, offset: data.offset, stun: 0, item: null };
         });
 
         const boxes = [];
-        for(let i=0.05; i<0.98; i+=0.06) {
+        for(let i=0.03; i<0.98; i+=0.04) {
             const p = curve.getPointAt(i);
             const numInRow = Math.random() > 0.5 ? 3 : 2;
             for(let j=0; j<numInRow; j++) {
-                const b = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), new THREE.MeshStandardMaterial({color: 0xff00ff, transparent:true, opacity:0.6}));
+                const b = new THREE.Mesh(new THREE.BoxGeometry(3.5, 3.5, 3.5), new THREE.MeshStandardMaterial({color: 0xff00ff, transparent:true, opacity:0.6}));
                 const offsetX = (j - (numInRow-1)/2) * 12;
                 b.position.set(p.x + offsetX, 2, p.z);
-                scene.add(b);
-                boxes.push(b);
+                scene.add(b); boxes.push(b);
             }
         }
 
         let isStarted = false, isFinished = false, playerItem = null, velocity = 0, angle = 0, startTime = null;
-        let boostTimer = 0;
+        let boostTimer = 0, jumpY = 0, jumpVelocity = 0, playerStun = 0;
         const keys = {};
-        let activeHorns = [];
+        let activeHorns = [], activePlanes = [];
+
+        function getRandomItem() {
+            const r = Math.random();
+            if (r < 0.01) return 'TAKEO';
+            if (r < 0.11) return 'PLANE';
+            const remain = ['HORN', 'MUSHROOM', 'SHEPHERD'];
+            return remain[Math.floor(Math.random() * remain.length)];
+        }
 
         function useItem(owner, type) {
+            const all = [{obj:player, z:player.position.z, stat:null}, ...cpuStats.map(c=>({obj:c.obj, z:c.obj.position.z, stat:c}))].sort((a,b)=>b.z-a.z);
+            const leader = all[0];
+
             if (type === 'HORN') {
                 let target = null;
                 if (owner === player) {
                     let minDist = Infinity;
-                    cpuStats.forEach(c => {
-                        if (c.obj.position.z > player.position.z) {
-                            let d = player.position.distanceTo(c.obj.position);
-                            if (d < minDist) { minDist = d; target = c.obj; }
-                        }
-                    });
+                    cpuStats.forEach(c => { if (c.obj.position.z > player.position.z) { let d = player.position.distanceTo(c.obj.position); if (d < minDist) { minDist = d; target = c.obj; } } });
                 } else if (player.position.z > owner.position.z) { target = player; }
                 if(target) spawnHorn(owner, target);
             } else if (type === 'MUSHROOM') {
                 if (owner === player) velocity += 1.3;
                 else { const stat = cpuStats.find(s => s.obj === owner); if(stat) stat.t += 0.01; }
             } else if (type === 'SHEPHERD') {
-                // ① 羊飼いブースト短縮（180 -> 120フレーム = 2秒）
+                if (owner === player) { boostTimer = 120; shepherd.visible = true; document.getElementById('boost-bar').style.display = 'block'; }
+                else { const stat = cpuStats.find(s => s.obj === owner); if(stat) { stat.speed *= 1.25; setTimeout(() => { if(stat) stat.speed /= 1.25; }, 2000); } }
+            } else if (type === 'PLANE') { spawnPlane(owner, leader.obj); }
+            else if (type === 'TAKEO') {
                 if (owner === player) {
-                    boostTimer = 120; 
-                    shepherd.visible = true;
-                    document.getElementById('boost-bar').style.display = 'block';
+                    const targetT = Math.max(0, leader.obj.position.z / trackLength - 0.005);
+                    const p = curve.getPointAt(targetT);
+                    player.position.set(p.x, 0, p.z); velocity = 0.5;
                 } else {
                     const stat = cpuStats.find(s => s.obj === owner);
-                    if(stat) {
-                        stat.speed *= 1.25;
-                        setTimeout(() => { if(stat) stat.speed /= 1.25; }, 2000);
-                    }
+                    if(stat) stat.t = Math.max(0, leader.obj.position.z / trackLength - 0.005);
                 }
             }
         }
@@ -172,19 +186,21 @@
         function spawnHorn(owner, target) {
             const horn = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.8, 8), new THREE.MeshStandardMaterial({color: 0xffeb3b}));
             horn.position.copy(owner.position).y += 1.5;
-            scene.add(horn);
-            activeHorns.push({ obj: horn, target, life: 240 });
+            scene.add(horn); activeHorns.push({ obj: horn, target, life: 240 });
+        }
+
+        function spawnPlane(owner, target) {
+            const plane = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 2), new THREE.MeshStandardMaterial({color: 0x2196F3}));
+            plane.position.copy(owner.position).y += 5;
+            scene.add(plane); activePlanes.push({ obj: plane, target, life: 400 });
         }
 
         window.addEventListener('keydown', (e) => {
             keys[e.code] = true;
             if (e.code === 'Space') {
-                if (!isStarted) {
-                    isStarted = true; startTime = Date.now();
-                    document.getElementById('start-screen').style.display = 'none';
-                } else if (playerItem && !isFinished) {
-                    useItem(player, playerItem); playerItem = null;
-                    document.getElementById('item-name').innerText = "EMPTY";
+                if (!isStarted) { isStarted = true; startTime = Date.now(); document.getElementById('start-screen').style.display = 'none'; }
+                else if (playerItem && !isFinished) {
+                    useItem(player, playerItem); playerItem = null; document.getElementById('item-name').innerText = "EMPTY";
                 }
             }
         });
@@ -194,48 +210,40 @@
             requestAnimationFrame(animate);
             if (!isStarted || isFinished) { renderer.render(scene, camera); return; }
 
-            let accel = 0.038;
-            let friction = 0.97;
-            
-            if (boostTimer > 0) {
-                accel *= 1.25;
-                friction = 0.98;
-                boostTimer--;
-                if (boostTimer <= 0) {
-                    shepherd.visible = false;
-                    document.getElementById('boost-bar').style.display = 'none';
-                }
+            if(playerStun > 0) { playerStun--; velocity *= 0.5; } 
+            else {
+                let accel = 0.04; let friction = 0.97;
+                if (boostTimer > 0) { accel *= 1.25; friction = 0.98; boostTimer--; if(boostTimer <= 0){ shepherd.visible = false; document.getElementById('boost-bar').style.display = 'none'; } }
+                if (keys['KeyW'] || keys['ArrowUp']) velocity += accel; 
+                if (keys['KeyS'] || keys['ArrowDown']) velocity -= accel;
+                if (Math.abs(velocity) > 0.005) { if (keys['KeyA'] || keys['ArrowLeft']) angle += 0.052; if (keys['KeyD'] || keys['ArrowRight']) angle -= 0.052; }
+                velocity *= friction;
             }
 
-            if (keys['KeyW'] || keys['ArrowUp']) velocity += accel; 
-            if (keys['KeyS'] || keys['ArrowDown']) velocity -= accel;
-            if (Math.abs(velocity) > 0.005) {
-                if (keys['KeyA'] || keys['ArrowLeft']) angle += 0.052;
-                if (keys['KeyD'] || keys['ArrowRight']) angle -= 0.052;
-            }
-            velocity *= friction; 
+            jumpY += jumpVelocity; if(jumpY > 0) { jumpVelocity -= 0.015; } else { jumpY = 0; jumpVelocity = 0; }
+            player.position.y = jumpY;
 
+            // ギミック接触判定
+            jumpPads.forEach(j => { if(player.position.distanceTo(j.position) < 10 && jumpY <= 0.5) { jumpVelocity = 0.55; velocity += 0.6; } });
+            obstacles.forEach(o => { if(player.position.distanceTo(o.position) < 5 && jumpY < 1.5) { velocity = 0; playerStun = 45; } });
+
+            // オフロード判定
             let minPlayerDist = Infinity;
-            const currentT = Math.min(Math.max(player.position.z / 2400, 0), 1);
+            const currentT = Math.min(Math.max(player.position.z / trackLength, 0), 1);
             for (let i = -0.05; i <= 0.05; i += 0.005) {
                 const t = Math.min(Math.max(currentT + i, 0), 1);
                 const p = curve.getPointAt(t);
                 const d = new THREE.Vector2(player.position.x, player.position.z).distanceTo(new THREE.Vector2(p.x, p.z));
                 if (d < minPlayerDist) minPlayerDist = d;
             }
-            if (minPlayerDist > trackRadius + 2) { 
-                velocity *= 0.82; 
-                document.getElementById('status').innerText = "🍀 OFF ROAD";
-                document.getElementById('status').style.color = "#ff3333";
-            } else {
-                document.getElementById('status').innerText = "🏎️ ON ROAD";
-                document.getElementById('status').style.color = "#00ff00";
-            }
+            if (minPlayerDist > trackRadius + 2) { velocity *= 0.82; document.getElementById('status').innerText = "🍀 OFF ROAD"; document.getElementById('status').style.color = "#ff3333"; }
+            else { document.getElementById('status').innerText = "🏎️ ON ROAD"; document.getElementById('status').style.color = "#00ff00"; }
 
             player.rotation.y = angle;
             player.position.x += Math.sin(angle) * velocity;
             player.position.z += Math.cos(angle) * velocity;
 
+            // CPU移動
             cpuStats.forEach(c => {
                 if (c.stun > 0) { c.obj.rotation.y += 0.5; c.stun--; return; }
                 c.t += c.speed;
@@ -243,52 +251,58 @@
                 c.obj.position.set(p.x + c.offset, 0, p.z);
                 const lookAtP = curve.getPointAt(Math.min(c.t + 0.01, 1));
                 c.obj.lookAt(lookAtP.x + c.offset, 0, lookAtP.z);
-                boxes.forEach(b => {
-                    if (b.visible && c.obj.position.distanceTo(b.position) < 8) {
-                        b.visible = false; 
-                        const rand = Math.random();
-                        c.item = rand < 0.33 ? 'HORN' : rand < 0.66 ? 'MUSHROOM' : 'SHEPHERD';
-                        setTimeout(() => b.visible = true, 4000);
-                    }
+                boxes.forEach(b => { 
+                    if (b.visible && c.obj.position.distanceTo(b.position) < 8) { 
+                        b.visible = false; c.item = getRandomItem(); 
+                        setTimeout(() => b.visible = true, 100); // ② CPU用も高速復活
+                    } 
                 });
-                if (c.item && Math.random() < 0.01) { useItem(c.obj, c.item); c.item = null; }
+                if (c.item && Math.random() < 0.005) { useItem(c.obj, c.item); c.item = null; }
             });
 
+            // ホーミングツノ
             activeHorns.forEach((h, index) => {
                 const dir = new THREE.Vector3().subVectors(h.target.position, h.obj.position).normalize();
                 h.obj.position.add(dir.multiplyScalar(3.0));
-                h.obj.lookAt(h.target.position);
                 if (h.obj.position.distanceTo(h.target.position) < 3) {
-                    if (h.target === player) { velocity = 0; boostTimer = 0; shepherd.visible = false; document.getElementById('boost-bar').style.display = 'none'; }
-                    const stat = cpuStats.find(s => s.obj === h.target);
-                    if (stat) stat.stun = 60;
+                    if (h.target === player) { velocity = 0; playerStun = 60; }
+                    const stat = cpuStats.find(s => s.obj === h.target); if (stat) stat.stun = 60;
                     scene.remove(h.obj); activeHorns.splice(index, 1);
                 }
                 h.life--; if (h.life <= 0) { scene.remove(h.obj); activeHorns.splice(index, 1); }
             });
 
-            boxes.forEach(b => {
-                if (b.visible && player.position.distanceTo(b.position) < 8) {
-                    b.visible = false;
-                    const rand = Math.random();
-                    playerItem = rand < 0.33 ? 'HORN' : rand < 0.66 ? 'MUSHROOM' : 'SHEPHERD';
-                    document.getElementById('item-name').innerText = playerItem === 'HORN' ? '角' : playerItem === 'MUSHROOM' ? 'キノコ' : '羊飼い';
-                    setTimeout(() => b.visible = true, 4000);
+            // 飛行機
+            activePlanes.forEach((p, index) => {
+                const dir = new THREE.Vector3().subVectors(p.target.position, p.obj.position).normalize();
+                p.obj.position.add(dir.multiplyScalar(2.5));
+                p.obj.lookAt(p.target.position);
+                if (p.obj.position.distanceTo(p.target.position) < 4) {
+                    if (p.target === player) { velocity = 0; playerStun = 120; }
+                    const stat = cpuStats.find(s => s.obj === p.target); if (stat) stat.stun = 120;
+                    scene.remove(p.obj); activePlanes.splice(index, 1);
                 }
+                p.life--; if (p.life <= 0) { scene.remove(p.obj); activePlanes.splice(index, 1); }
+            });
+
+            // プレイヤーアイテム取得
+            boxes.forEach(b => { 
+                if (b.visible && player.position.distanceTo(b.position) < 8) { 
+                    b.visible = false; playerItem = getRandomItem();
+                    const names = {'HORN':'角','MUSHROOM':'キノコ','SHEPHERD':'羊飼い','PLANE':'飛行機','TAKEO':'タケコプター'};
+                    document.getElementById('item-name').innerText = names[playerItem]; 
+                    setTimeout(() => b.visible = true, 100); // ② 即時復活
+                } 
             });
 
             const allGoats = [{n:'You', z:player.position.z}, ...cpuStats.map(c=>({n:c.name, z:c.obj.position.z}))].sort((a,b)=>b.z-a.z);
             const myRank = allGoats.findIndex(r=>r.n==='You')+1;
             document.getElementById('rank').innerText = `Rank: ${myRank}/6`;
 
-            if (player.position.z > 2390) {
-                isFinished = true;
-                document.getElementById('final-rank').innerText = `${myRank}位！`;
-                document.getElementById('result-screen').style.display = 'block';
-            }
+            if (player.position.z > 4780) { isFinished = true; document.getElementById('final-rank').innerText = `${myRank}位！`; document.getElementById('result-screen').style.display = 'block'; }
 
-            camera.position.set(player.position.x - Math.sin(angle)*15, 8, player.position.z - Math.cos(angle)*15);
-            camera.lookAt(player.position.x, 2, player.position.z);
+            camera.position.set(player.position.x - Math.sin(angle)*15, 8 + jumpY, player.position.z - Math.cos(angle)*15);
+            camera.lookAt(player.position.x, 2 + jumpY, player.position.z);
             document.getElementById('timer').innerText = `Time: ${((Date.now()-startTime)/1000).toFixed(2)}s`;
             renderer.render(scene, camera);
         }
