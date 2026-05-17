@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Goat Kart GP - Ultimate Edition</title>
+    <title>Goat Kart GP - True Ultimate Edition</title>
     <style>
         html, body { 
             position: fixed; width: 100%; height: 100%; 
@@ -13,44 +13,27 @@
             -webkit-user-select: none; user-select: none;
         }
         
-        /* スタート画面：iPhoneが絶対に拒絶できないHTMLボタン */
         #start-overlay { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
             display: flex; flex-direction: column; justify-content: center; align-items: center; 
-            z-index: 999;
-            background: rgba(0,0,0,0.3);
+            z-index: 999; background: rgba(0,0,0,0.3);
         }
 
         #html-start-btn {
-            padding: 25px 50px;
-            font-size: 28px;
-            font-family: 'Arial Black', sans-serif;
-            font-weight: bold;
-            color: #000;
-            background: #ffeb3b;
-            border: 4px solid #fff;
-            border-radius: 50px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-            cursor: pointer;
-            animation: pulse 1s infinite alternate;
+            padding: 25px 50px; font-size: 28px; font-family: 'Arial Black', sans-serif; font-weight: bold;
+            color: #000; background: #ffeb3b; border: 4px solid #fff; border-radius: 50px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3); cursor: pointer; animation: pulse 1s infinite alternate;
             -webkit-tap-highlight-color: transparent;
         }
         @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.05); } }
         
-        #countdown { 
-            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); 
-            font-size: 100px; color: #fff; text-shadow: 0 0 30px #f00, 4px 4px 0 #000; 
-            z-index: 150; display: none; pointer-events: none; 
-        }
-        
+        #countdown { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 100px; color: #fff; text-shadow: 0 0 30px #f00, 4px 4px 0 #000; z-index: 150; display: none; pointer-events: none; }
         #ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; z-index: 10; font-size: 12px; pointer-events: none; opacity: 0; }
         #item-slot { position: absolute; top: 10px; right: 10px; width: 75px; height: 75px; background: rgba(0,0,0,0.5); border: 3px solid #fff; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 10; pointer-events: none; opacity: 0; }
 
         .touch-btn { 
-            position: absolute; background: rgba(255,255,255,0.3); 
-            border: 2px solid rgba(255,255,255,0.6); border-radius: 50%; 
-            color: white; display: flex; justify-content: center; align-items: center; 
-            z-index: 500; display: none; font-size: 24px;
+            position: absolute; background: rgba(255,255,255,0.3); border: 2px solid rgba(255,255,255,0.6); border-radius: 50%; 
+            color: white; display: flex; justify-content: center; align-items: center; z-index: 500; display: none; font-size: 24px;
             -webkit-tap-highlight-color: transparent;
         }
         #btn-left { bottom: 30px; left: 20px; width: 75px; height: 75px; }
@@ -73,10 +56,7 @@
     <div id="item-slot"><div style="font-size: 10px;">ITEM</div><div id="item-name" style="font-size: 12px; color: #ffeb3b; text-align: center;">EMPTY</div></div>
     <div id="boost-bar">BIG HORN!!</div>
 
-    <div id="btn-left" class="touch-btn">◀</div>
-    <div id="btn-right" class="touch-btn">▶</div>
-    <div id="btn-accel" class="touch-btn">GO!</div>
-    <div id="btn-item" class="touch-btn">ITEM</div>
+    <div id="btn-left" class="touch-btn">◀</div><div id="btn-right" class="touch-btn">▶</div><div id="btn-accel" class="touch-btn">GO!</div><div id="btn-item" class="touch-btn">ITEM</div>
 
     <div id="result-screen">
         <h1 id="result-title">GOAL!</h1>
@@ -116,7 +96,7 @@
         const grass = new THREE.Mesh(new THREE.PlaneGeometry(15000, 15000), new THREE.MeshStandardMaterial({ color: 0x7cb342 }));
         grass.rotation.x = -Math.PI / 2; scene.add(grass);
 
-        // --- 街並みと森の完全復活 ---
+        // 街並みと森
         function createTree(x, z) {
             const tree = new THREE.Group();
             const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 4), new THREE.MeshStandardMaterial({color: 0x5d4037}));
@@ -143,19 +123,20 @@
         const goalLine = new THREE.Mesh(new THREE.PlaneGeometry(trackRadius * 4, 10), new THREE.MeshStandardMaterial({ color: 0xff3333 }));
         goalLine.rotation.x = -Math.PI / 2; goalLine.position.set(0, 0.05, 4790); scene.add(goalLine);
 
-        // ジャンプ台と障害物（車と木）の生成
+        // ジャンプ台と障害物
         const obstacles = [];
         const jumpPads = [];
-        for(let i=0.08; i<0.95; i+=0.06) {
+        for(let i=0.06; i<0.95; i+=0.06) {
             const p = curve.getPointAt(i);
             const nextP = curve.getPointAt(i + 0.01);
             const dir = new THREE.Vector3().subVectors(nextP, p).normalize();
             const angle = Math.atan2(dir.x, dir.z);
-            if (i % 0.12 < 0.01) {
-                const jp = new THREE.Mesh(new THREE.BoxGeometry(18, 2, 12), new THREE.MeshStandardMaterial({color: 0xffeb3b}));
-                jp.position.set(p.x + 8, 0.5, p.z); jp.rotation.y = angle; jp.rotation.x = -0.3;
-                scene.add(jp); jumpPads.push(jp);
-            }
+            
+            // ① ジャンプ台モデル
+            const jp = new THREE.Mesh(new THREE.BoxGeometry(16, 2, 10), new THREE.MeshStandardMaterial({color: 0xffeb3b}));
+            jp.position.set(p.x + 6, 0.5, p.z); jp.rotation.y = angle; jp.rotation.x = -0.3;
+            scene.add(jp); jumpPads.push(jp);
+
             const obsP = curve.getPointAt(i + 0.03);
             let obs;
             if (Math.random() > 0.5) {
@@ -167,11 +148,10 @@
                 obs = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 7), new THREE.MeshStandardMaterial({color: 0xc62828}));
                 obs.rotation.y = angle + Math.PI/2;
             }
-            obs.position.set(obsP.x + (Math.random()*20-10), 1.5, obsP.z);
+            obs.position.set(obsP.x - 6, 1.5, obsP.z);
             scene.add(obs); obstacles.push(obs);
         }
 
-        // 混乱マーク生成
         function createDizzyMark() {
             const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
             const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffeb3b'; ctx.font = '50px Arial';
@@ -193,15 +173,20 @@
         const h2 = h1.clone(); h2.position.x = -0.3; bigHorn.add(h1, h2); bigHorn.visible = false;
         player.add(bigHorn); scene.add(player);
 
-        // --- ライバルCPUを5台に増量 ---
-        const cpuStats = [{n:"C1", c:0xffaaaa, o:-12}, {n:"C2", c:0xaaaaff, o:12}, {n:"C3", c:0xffe082, o:-6}, {n:"C4", c:0xce93d8, o:6}, {n:"C5", c:0x80cbc4, o:0}].map(d => {
+        // --- ③ CPUを5台（全員集合）に変更 ---
+        // --- ④ スピードの均一化 (全員一律 0.00017) ---
+        const baseCpuSpeed = 0.00017;
+        const cpuStats = [
+            {n:"C1", c:0xffaaaa, o:-12}, {n:"C2", c:0xaaaaff, o:12}, 
+            {n:"C3", c:0xffe082, o:-6},  {n:"C4", c:0xce93d8, o:6}, 
+            {n:"C5", c:0x80cbc4, o:0}
+        ].map(d => {
             const obj = createGoat(d.c); scene.add(obj);
-            return { obj, name: d.n, t: 0, speed: 0.00016 + Math.random() * 0.0001, offset: d.o, stun: 0, item: null };
+            return { obj, name: d.n, t: 0, speed: baseCpuSpeed, offset: d.o, stun: 0, item: null };
         });
 
-        // アイテムボックス
         const boxes = [];
-        for(let i=0{
+        for(let i=0.03; i<0.98; i+=0.04) {
             const p = curve.getPointAt(i);
             for(let j=0; j<2; j++) {
                 const b = new THREE.Mesh(new THREE.BoxGeometry(3.5, 3.5, 3.5), new THREE.MeshStandardMaterial({color: 0xff00ff, transparent:true, opacity:0.6}));
@@ -214,7 +199,6 @@
         const keys = {}; const touch = { left: false, right: false, accel: false };
         let activeHorns = [], activePlanes = [];
 
-        // 全アイテム確率抽選 (タケコプター1%, 飛行機10%)
         function getRandomItem() {
             const r = Math.random();
             if (r < 0.01) return 'TAKEO';
@@ -308,13 +292,34 @@
                 renderer.render(scene, camera); return;
             }
 
-            // プレイヤー挙動 & 混乱
+            // プレイヤー挙動
             if(playerStun > 0) { 
                 playerStun--; velocity *= 0.8; player.rotation.y += 0.3;
                 player.userData.dizzy.visible = true; player.userData.dizzy.rotation.z += 0.1;
             } else {
                 player.userData.dizzy.visible = false;
-                let accel = 0.04; let friction = 0.97;
+                
+                // --- ④ プレイヤーの最高速度制限 (CPUと同じ0.81に調整) ---
+                let accel = 0.04; 
+                let friction = 0.95; 
+
+                // --- ② オフロード（芝生）減速処理の復活 ---
+                let minPlayerDist = Infinity;
+                const currentT = Math.min(Math.max(player.position.z / trackLength, 0), 1);
+                for (let i = -0.05; i <= 0.05; i += 0.005) {
+                    const t = Math.min(Math.max(currentT + i, 0), 1);
+                    const p = curve.getPointAt(t);
+                    const d = new THREE.Vector2(player.position.x, player.position.z).distanceTo(new THREE.Vector2(p.x, p.z));
+                    if (d < minPlayerDist) minPlayerDist = d;
+                }
+                
+                if (minPlayerDist > trackRadius + 2) { 
+                    friction = 0.75; // オフロード時は強烈に摩擦がかかる（減速）
+                    document.getElementById('status').innerText = "🍀 OFF ROAD"; document.getElementById('status').style.color = "#ff3333";
+                } else {
+                    document.getElementById('status').innerText = "🏎️ ON ROAD"; document.getElementById('status').style.color = "#00ff00";
+                }
+
                 if (keys['KeyW'] || keys['ArrowUp'] || touch.accel) velocity += accel; 
                 if (Math.abs(velocity) > 0.005) {
                     if (keys['KeyA'] || keys['ArrowLeft'] || touch.left) angle += 0.052;
@@ -324,9 +329,19 @@
             }
 
             if (hornTimer > 0) { hornTimer--; if(hornTimer <= 0) { bigHorn.visible = false; document.getElementById('boost-bar').style.display = 'none'; } }
+            
             jumpY += jumpVelocity; if(jumpY > 0) jumpVelocity -= 0.015; else { jumpY = 0; jumpVelocity = 0; }
             player.position.y = jumpY;
-            jumpPads.forEach(j => { if(player.position.distanceTo(j.position) < 10 && jumpY <= 0.5) { jumpVelocity = 0.55; velocity += 0.6; } });
+
+            // ① ジャンプ台の判定強化（すり抜け対策）
+            jumpPads.forEach(j => { 
+                const dx = Math.abs(player.position.x - j.position.x);
+                const dz = Math.abs(player.position.z - j.position.z);
+                if(dx < 10 && dz < 6 && jumpY <= 0.5) { 
+                    jumpVelocity = 0.6; // 空中へ
+                    velocity = 1.8;     // 前方への推進力（大ブースト）
+                } 
+            });
             
             // プレイヤー障害物衝突判定（2秒回転）
             obstacles.forEach((o, i) => {
@@ -368,7 +383,7 @@
                 h.life--; if (h.life <= 0) { scene.remove(h.obj); activeHorns.splice(index, 1); }
             });
 
-            // 飛行機（1位追尾・3秒スタン）
+            // 飛行機
             activePlanes.forEach((p, index) => {
                 const dir = new THREE.Vector3().subVectors(p.target.position, p.obj.position).normalize();
                 p.obj.position.add(dir.multiplyScalar(2.5)); p.obj.lookAt(p.target.position);
