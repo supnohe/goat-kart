@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Goat Kart GP - iOS Button Fix</title>
+    <style>
+        html, body { 
+            position: fixed; width: 100%; height: 100%; 
+            margin: 0; overflow: hidden; background: #87CEEB; 
+            font-family: 'Arial Black', sans-serif; 
+            touch-action: none; -webkit-overflow-scrolling: none;
+            -webkit-user-select: none; user-select: none;
+        }
+        
+        /* スタート画面：本物のHTMLボタンを巨大化させて配置 */
+        #start-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            z-index: 999;
+            background: rgba(0,0,0,0.3);
+        }
+
+        /* iPhoneが絶対に拒絶できない「本物のボタン」 */
+        #html-start-btn {
+            padding: 25px 50px;
+            font-size: 28px;
+            font-family: 'Arial Black', sans-serif;
+            font-weight: bold;
+            color: #fff;
+            background: #ffeb3b;
+            color: #000;
+            border: 4px solid #fff;
+            border-radius: 50px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            cursor: pointer;
+            animation: pulse 1s infinite alternate;
+            -webkit-tap-highlight-color: transparent;
+        }
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.05); } }
+        
+        #countdown { 
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); 
+            font-size: 100px; color: #fff; text-shadow: 0 0 30px #f00, 4px 4px 0 #000; 
+            z-index: 150; display: none; pointer-events: none; 
+        }
+        
+        #ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; z-index: 10; font-size: 12px; pointer-events: none; opacity: 0; }
+        #item-slot { position: absolute; top: 10px; right: 10px; width: 70px; height: 70px; background: rgba(0,0,0,0.5); border: 3px solid #fff; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 10; pointer-events: none; opacity: 0; }
+
+        .touch-btn { 
+            position: absolute; background: rgba(255,255,255,0.3); 
+            border: 2px solid rgba(255,255,255,0.6); border-radius: 50%; 
+            color: white; display: flex; justify-content: center; align-items: center; 
+            z-index: 500; display: none; font-size: 24px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #btn-left { bottom: 30px; left: 20px; width: 75px; height: 75px; }
+        #btn-right { bottom: 30px; left: 105px; width: 75px; height: 75px; }
+        #btn-accel { bottom: 30px; right: 20px; width: 100px; height: 100px; background: rgba(76, 175, 80, 0.5); }
+        #btn-item { bottom: 140px; right: 20px; width: 75px; height: 75px; background: rgba(255, 152, 0, 0.5); }
+
+        #result-screen { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 20px; text-align: center; z-index: 1000; }
+        #boost-bar { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); color: #ffeb3b; font-size: 22px; font-weight: bold; display: none; text-shadow: 2px 2px 5px #000; z-index: 10; }
+    </style>
+</head>
+<body>
+    <div id="start-overlay">
+        <h1 style="color: #ffeb3b; font-size: 45px; margin: 0; text-shadow: 4px 4px 0 #000; margin-bottom: 30px;">Goat Kart GP</h1>
+        <button id="html-start-btn">START GAME</button>
+    </div>
+
+    <div id="countdown">3</div>
+    <div id="ui"><div id="rank">Rank: 1/6</div><div id="timer">Time: 0.00s</div><div id="status">ON ROAD</div></div>
+    <div id="item-slot"><div style="font-size: 10px;">ITEM</div><div id="item-name" style="font-size: 12px; color: #ffeb3b; text-align: center;">EMPTY</div></div>
+    <div id="boost-bar">BIG HORN!!</div>
+
+    <div id="btn-left" class="touch-btn">◀</div>
+    <div id="btn-right" class="touch-btn">▶</div>
+    <div id="btn-accel" class="touch-btn">GO!</div>
+    <div id="btn-item" class="touch-btn">ITEM</div>
+
+    <div id="result-screen">
+        <h1 id="result-title">GOAL!</h1>
+        <p id="final-rank" style="font-size: 24px; font-weight: bold;"></p>
+        <button id="retry-btn" style="padding:15px 30px; font-size:20px; background:#4CAF50; color:#fff; border:none; border-radius:5px;">RETRY</button>
+    </div>
+
+    <script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.157.0/build/three.module.js" } }</script>
+    <script type="module">
+        import * as THREE from 'three';
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+
+        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        sun.position.set(50, 300, 50);
+        scene.add(sun, new THREE.AmbientLight(0xffffff, 0.7));
+
+        const points = [
+            new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,400),
+            new THREE.Vector3(200,0,1000), new THREE.Vector3(-250,0,1600),
+            new THREE.Vector3(300,0,2400), new THREE.Vector3(-100,0,3200),
+            new THREE.Vector3(400,0,4000), new THREE.Vector3(0,0,4800)
+        ];
+        const curve = new THREE.CatmullRomCurve3(points);
+        const trackLength = 4800, trackRadius = 22; 
+        const trackGeo = new THREE.TubeGeometry(curve, 800, trackRadius, 12, false);
+        const track = new THREE.Mesh(trackGeo, new THREE.MeshStandardMaterial({ color: 0x333333 }));
+        track.scale.y = 0.01; scene.add(track);
+
+        const grass = new THREE.Mesh(new THREE.PlaneGeometry(15000, 15000), new THREE.MeshStandardMaterial({ color: 0x7cb342 }));
+        grass.rotation.x = -Math.PI / 2; scene.add(grass);
+
+        function createTree(x, z) {
+            const tree = new THREE.Group();
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 4), new THREE.MeshStandardMaterial({color: 0x5d4037}));
+            const leaves = new THREE.Mesh(new THREE.ConeGeometry(3, 7, 8), new THREE.MeshStandardMaterial({color: 0x2e7d32}));
+            leaves.position.y = 4; tree.add(trunk, leaves); tree.position.set(x, 0, z); scene.add(tree);
+        }
+        for (let i = 0; i < 1; i += 0.02) {
+            const p = curve.getPointAt(i);
+            createTree(p.x + 50, p.z); createTree(p.x - 50, p.z);
+        }
+
+        const goalLine = new THREE.Mesh(new THREE.PlaneGeometry(trackRadius * 4, 10), new THREE.MeshStandardMaterial({ color: 0xff3333 }));
+        goalLine.rotation.x = -Math.PI / 2; goalLine.position.set(0, 0.05, 4790); scene.add(goalLine);
+
+        const obstacles = [];
+        const jumpPads = [];
+        for(let i=0.08; i<0.95; i+=0.08) {
+            const p = curve.getPointAt(i);
+            const jp = new THREE.Mesh(new THREE.BoxGeometry(18, 2, 12), new THREE.MeshStandardMaterial({color: 0xffeb3b}));
+            jp.position.set(p.x + 8, 0.5, p.z); jp.rotation.x = -0.3; scene.add(jp); jumpPads.push(jp);
+            const obsP = curve.getPointAt(i + 0.04);
+            const obs = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 7), new THREE.MeshStandardMaterial({color: 0xc62828}));
+            obs.position.set(obsP.x - 5, 1.5, obsP.z); scene.add(obs); obstacles.push(obs);
+        }
+
+        function createDizzyMark() {
+            const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffeb3b'; ctx.font = '50px Arial';
+            ctx.textAlign = 'center'; ctx.fillText('@', 32, 50);
+            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas) }));
+            sprite.scale.set(3, 3, 1); sprite.position.y = 4; sprite.visible = false; return sprite;
+        }
+        function createGoat(color) {
+            const g = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.8), new THREE.MeshStandardMaterial({color})); body.position.y = 0.45;
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), new THREE.MeshStandardMaterial({color})); head.position.set(0, 1.15, 0.8);
+            const dizzy = createDizzyMark(); g.add(body, head, dizzy); g.userData = { dizzy }; return g;
+        }
+
+        const player = createGoat(0xffffff);
+        const bigHorn = new THREE.Group();
+        const h1 = new THREE.Mesh(new THREE.ConeGeometry(0.4, 3, 8), new THREE.MeshStandardMaterial({color: 0xffd700}));
+        h1.rotation.x = Math.PI / 2.5; h1.position.set(0.3, 1.5, 1.5);
+        const h2 = h1.clone(); h2.position.x = -0.3; bigHorn.add(h1, h2); bigHorn.visible = false;
+        player.add(bigHorn); scene.add(player);
+
+        const cpuStats = [{n:"C1", c:0xffaaaa, o:-12}, {n:"C2", c:0xaaaaff, o:12}].map(d => {
+            const obj = createGoat(d.c); scene.add(obj);
+            return { obj, name: d.n, t: 0, speed: 0.00018, offset: d.o, stun: 0 };
+        });
+
+        const boxes = [];
+        for(let i=0.03; i<0.98; i+=0.05) {
+            const p = curve.getPointAt(i);
+            const b = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), new THREE.MeshStandardMaterial({color: 0xff00ff, transparent:true, opacity:0.6}));
+            b.position.set(p.x, 2, p.z); scene.add(b); boxes.push(b);
+        }
+
+        let isReady = false, isStarted = false, isFinished = false, playerItem = null, velocity = 0, angle = 0, startTime = null;
+        let hornTimer = 0, jumpY = 0, jumpVelocity = 0, playerStun = 0;
+        const keys = {}; const touch = { left: false, right: false, accel: false };
+
+        function getRandomItem() {
+            const r = Math.random();
+            if (r < 0.15) return 'BIGHORN'; if (r < 0.25) return 'TAKEO'; if (r < 0.4) return 'PLANE';
+            return Math.random() > 0.5 ? 'HORN' : 'MUSHROOM';
+        }
+
+        function useItem(type) {
+            if (type === 'BIGHORN') { hornTimer = 300; bigHorn.visible = true; document.getElementById('boost-bar').style.display = 'block'; }
+            else if (type === 'MUSHROOM') { velocity += 1.6; }
+        }
+
+        // --- カウントダウン開始処理 ---
+        function startRaceCountdown() {
+            if (isReady) return; 
+            isReady = true;
+            
+            document.getElementById('start-overlay').style.display = 'none';
+            const countEl = document.getElementById('countdown');
+            countEl.style.display = 'block';
+            document.getElementById('ui').style.opacity = "1";
+            document.getElementById('item-slot').style.opacity = "1";
+            document.querySelectorAll('.touch-btn').forEach(b => b.style.display = "flex");
+
+            let counts = ["3", "2", "1", "GO!"], idx = 0;
+            const timer = setInterval(() => {
+                if (idx < counts.length) { countEl.innerText = counts[idx]; idx++; } 
+                else { countEl.style.display = 'none'; isStarted = true; startTime = Date.now(); clearInterval(timer); }
+            }, 700);
+        }
+
+        // ★★★ iPhone用：本物のボタンクリックイベントをトリガーにする ★★★
+        const realBtn = document.getElementById('html-start-btn');
+        realBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            startRaceCountdown();
+        });
+        realBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            startRaceCountdown();
+        }, {passive: false});
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                if (!isReady) startRaceCountdown();
+                else if (isStarted && playerItem) { useItem(playerItem); playerItem = null; document.getElementById('item-name').innerText = "EMPTY"; }
+            }
+            keys[e.code] = true;
+        });
+        window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        const setupBtn = (id, key) => {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (key === 'item') {
+                    if (isStarted && playerItem) { useItem(playerItem); playerItem = null; document.getElementById('item-name').innerText = "EMPTY"; }
+                } else { touch[key] = true; }
+            }, {passive: false});
+            el.addEventListener('touchend', (e) => { touch[key] = false; }, {passive: false});
+        };
+        setupBtn('btn-left', 'left'); setupBtn('btn-right', 'right'); setupBtn('btn-accel', 'accel'); setupBtn('btn-item', 'item');
+        
+        document.getElementById('retry-btn').addEventListener('click', () => location.reload());
+        document.getElementById('retry-btn').addEventListener('touchstart', () => location.reload());
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!isStarted || isFinished) {
+                if (!isStarted) {
+                    camera.position.set(player.position.x - Math.sin(angle)*15, 8, player.position.z - Math.cos(angle)*15);
+                    camera.lookAt(player.position.x, 2, player.position.z);
+                }
+                renderer.render(scene, camera); return;
+            }
+
+            if(playerStun > 0) { 
+                playerStun--; velocity *= 0.8; player.rotation.y += 0.3;
+                player.userData.dizzy.visible = true;
+            } else {
+                player.userData.dizzy.visible = false;
+                let accel = 0.04; let friction = 0.97;
+                if (keys['KeyW'] || keys['ArrowUp'] || touch.accel) velocity += accel; 
+                if (Math.abs(velocity) > 0.005) {
+                    if (keys['KeyA'] || keys['ArrowLeft'] || touch.left) angle += 0.052;
+                    if (keys['KeyD'] || keys['ArrowRight'] || touch.right) angle -= 0.052;
+                }
+                velocity *= friction; player.rotation.y = angle;
+            }
+
+            if (hornTimer > 0) { hornTimer--; if(hornTimer <= 0) { bigHorn.visible = false; document.getElementById('boost-bar').style.display = 'none'; } }
+            jumpY += jumpVelocity; if(jumpY > 0) jumpVelocity -= 0.015; else { jumpY = 0; jumpVelocity = 0; }
+            player.position.y = jumpY;
+
+            obstacles.forEach((o, i) => {
+                if(playerStun <= 0 && player.position.distanceTo(o.position) < 5.5 && jumpY < 2) {
+                    if (hornTimer > 0) { scene.remove(o); obstacles.splice(i, 1); } 
+                    else { velocity *= -0.5; playerStun = 100; }
+                }
+            });
+
+            player.position.x += Math.sin(angle) * velocity;
+            player.position.z += Math.cos(angle) * velocity;
+
+            cpuStats.forEach(c => {
+                if (c.stun > 0) { c.obj.rotation.y += 0.3; c.stun--; return; }
+                c.t += c.speed; const p = curve.getPointAt(Math.min(c.t, 1));
+                c.obj.position.set(p.x + c.offset, 0, p.z);
+                const lp = curve.getPointAt(Math.min(c.t + 0.01, 1));
+                c.obj.lookAt(lp.x + c.offset, 0, lp.z);
+            });
+
+            boxes.forEach(b => { if (b.visible && player.position.distanceTo(b.position) < 8) { b.visible = false; playerItem = Math.random() > 0.5 ? 'BIGHORN' : 'MUSHROOM';
+                document.getElementById('item-name').innerText = playerItem === 'BIGHORN' ? 'ツノ' : 'キノコ'; setTimeout(() => b.visible = true, 100); } });
+
+            const all = [{n:'You', z:player.position.z}, ...cpuStats.map(c=>({n:c.name, z:c.obj.position.z}))].sort((a,b)=>b.z-a.z);
+            document.getElementById('rank').innerText = `Rank: ${all.findIndex(r=>r.n==='You')+1}/3`;
+
+            if (player.position.z > 4780) { isFinished = true; document.getElementById('result-screen').style.display = 'block'; }
+            camera.position.set(player.position.x - Math.sin(angle)*15, 8 + jumpY, player.position.z - Math.cos(angle)*15);
+            camera.lookAt(player.position.x, 2 + jumpY, player.position.z);
+            document.getElementById('timer').innerText = `Time: ${((Date.now()-startTime)/1000).toFixed(2)}s`;
+            renderer.render(scene, camera);
+        }
+        animate();
+        player.position.set(0,0,0);
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+    </script>
+</body>
+</html>
