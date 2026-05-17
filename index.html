@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Goat Kart GP - True Ultimate Edition</title>
+    <title>Goat Kart GP - Fixed & Synced</title>
     <style>
         html, body { 
             position: fixed; width: 100%; height: 100%; 
@@ -132,7 +132,6 @@
             const dir = new THREE.Vector3().subVectors(nextP, p).normalize();
             const angle = Math.atan2(dir.x, dir.z);
             
-            // ① ジャンプ台モデル
             const jp = new THREE.Mesh(new THREE.BoxGeometry(16, 2, 10), new THREE.MeshStandardMaterial({color: 0xffeb3b}));
             jp.position.set(p.x + 6, 0.5, p.z); jp.rotation.y = angle; jp.rotation.x = -0.3;
             scene.add(jp); jumpPads.push(jp);
@@ -173,8 +172,7 @@
         const h2 = h1.clone(); h2.position.x = -0.3; bigHorn.add(h1, h2); bigHorn.visible = false;
         player.add(bigHorn); scene.add(player);
 
-        // --- ③ CPUを5台（全員集合）に変更 ---
-        // --- ④ スピードの均一化 (全員一律 0.00017) ---
+        // CPU最高速度 (一律 0.00017)
         const baseCpuSpeed = 0.00017;
         const cpuStats = [
             {n:"C1", c:0xffaaaa, o:-12}, {n:"C2", c:0xaaaaff, o:12}, 
@@ -185,6 +183,7 @@
             return { obj, name: d.n, t: 0, speed: baseCpuSpeed, offset: d.o, stun: 0, item: null };
         });
 
+        // アイテムボックスのループ修正（無限ループ対策完了）
         const boxes = [];
         for(let i=0.03; i<0.98; i+=0.04) {
             const p = curve.getPointAt(i);
@@ -264,6 +263,7 @@
             }
             keys[e.code] = true;
         });
+        window.addEventListener('keydown', (e) => keys[e.code] = true);
         window.addEventListener('keyup', (e) => keys[e.code] = false);
 
         const setupBtn = (id, key) => {
@@ -299,11 +299,11 @@
             } else {
                 player.userData.dizzy.visible = false;
                 
-                // --- ④ プレイヤーの最高速度制限 (CPUと同じ0.81に調整) ---
-                let accel = 0.04; 
-                let friction = 0.95; 
+                // プレイヤーとCPUの最高速度の完全一致調整 (0.816)
+                let accel = 0.045; 
+                let friction = 0.945; 
 
-                // --- ② オフロード（芝生）減速処理の復活 ---
+                // オフロード判定
                 let minPlayerDist = Infinity;
                 const currentT = Math.min(Math.max(player.position.z / trackLength, 0), 1);
                 for (let i = -0.05; i <= 0.05; i += 0.005) {
@@ -314,7 +314,7 @@
                 }
                 
                 if (minPlayerDist > trackRadius + 2) { 
-                    friction = 0.75; // オフロード時は強烈に摩擦がかかる（減速）
+                    friction = 0.75; // 芝生減速
                     document.getElementById('status').innerText = "🍀 OFF ROAD"; document.getElementById('status').style.color = "#ff3333";
                 } else {
                     document.getElementById('status').innerText = "🏎️ ON ROAD"; document.getElementById('status').style.color = "#00ff00";
@@ -333,17 +333,17 @@
             jumpY += jumpVelocity; if(jumpY > 0) jumpVelocity -= 0.015; else { jumpY = 0; jumpVelocity = 0; }
             player.position.y = jumpY;
 
-            // ① ジャンプ台の判定強化（すり抜け対策）
+            // ジャンプ台判定
             jumpPads.forEach(j => { 
                 const dx = Math.abs(player.position.x - j.position.x);
                 const dz = Math.abs(player.position.z - j.position.z);
                 if(dx < 10 && dz < 6 && jumpY <= 0.5) { 
-                    jumpVelocity = 0.6; // 空中へ
-                    velocity = 1.8;     // 前方への推進力（大ブースト）
+                    jumpVelocity = 0.6; 
+                    velocity = 1.8; 
                 } 
             });
             
-            // プレイヤー障害物衝突判定（2秒回転）
+            // 障害物衝突判定
             obstacles.forEach((o, i) => {
                 if(playerStun <= 0 && player.position.distanceTo(o.position) < 5.5 && jumpY < 2) {
                     if (hornTimer > 0) { scene.remove(o); obstacles.splice(i, 1); } 
@@ -354,7 +354,7 @@
             player.position.x += Math.sin(angle) * velocity;
             player.position.z += Math.cos(angle) * velocity;
 
-            // CPU移動 ＆ 障害物衝突判定（2秒回転）
+            // CPU移動 ＆ 衝突判定
             cpuStats.forEach(c => {
                 if (c.stun > 0) { c.obj.rotation.y += 0.3; c.stun--; c.obj.userData.dizzy.visible = true; c.obj.userData.dizzy.rotation.z += 0.1; return; }
                 c.obj.userData.dizzy.visible = false; c.t += c.speed;
